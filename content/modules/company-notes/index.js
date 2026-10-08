@@ -70,11 +70,11 @@ export function extractMCFromElement(el) {
 }
 
 /**
- * Checks if an element is strictly inside the expanded details panel / company card
+ * Checks if an element is strictly inside the expanded details panel (e.g. details-container, xl-details)
  */
-export function isInsideExpandedPanel(el) {
+export function isInsideExpandedDetails(el) {
   if (!el || !el.closest) return false;
-  return !!el.closest('dat-company, app-company-details, [data-testid*="company-card"], .details-container, .xl-details, dat-load-details, [class*="load-details"]');
+  return !!el.closest('.details-container, .xl-details, .expanded-details, .row-details');
 }
 
 /**
@@ -328,7 +328,7 @@ export class CompanyNotesModule {
     if (coList.length === 0 && brkList.length === 0) {
       document.querySelectorAll('.dat-table-dot').forEach((d) => d.remove());
       document.querySelectorAll('.row-cells .dat-email-broker-wrapper, .table-cell .dat-email-broker-wrapper').forEach((w) => {
-        if (!isInsideExpandedPanel(w)) unwrapEmailWrapper(w);
+        if (!isInsideExpandedDetails(w)) unwrapEmailWrapper(w);
       });
       return;
     }
@@ -406,7 +406,7 @@ export class CompanyNotesModule {
 
       // Direct search inside dat-company or .company-prefer-or-blocked
       const directCompLink = cellsContainer.querySelector('dat-company a, .company-prefer-or-blocked a, a.mat-tooltip-trigger');
-      if (directCompLink && !isInsideExpandedPanel(directCompLink)) {
+      if (directCompLink && !isInsideExpandedDetails(directCompLink)) {
         const txt = directCompLink.innerText?.trim();
         if (txt && !PHONE_PATTERN.test(txt) && !EMAIL_PATTERN.test(txt)) {
           companyLink = directCompLink;
@@ -417,7 +417,7 @@ export class CompanyNotesModule {
       // Fallback: search links in row
       if (!companyLink) {
         for (const a of cellsContainer.querySelectorAll('.table-cell a, a')) {
-          if (isInsideExpandedPanel(a)) continue;
+          if (isInsideExpandedDetails(a)) continue;
           const txt = a.innerText?.trim();
           if (!txt || PHONE_PATTERN.test(txt) || EMAIL_PATTERN.test(txt)) continue;
           const norm = IdentityParser.normalizeName(txt);
@@ -497,7 +497,7 @@ export class CompanyNotesModule {
       for (const el of phoneCandidates) {
         if (el.children.length > 0 && el.querySelector('a')) continue;
         if (el === companyLink) continue;
-        if (el.closest('.dat-email-broker-wrapper, .dat-table-dot, .dat-notes-modal') || isInsideExpandedPanel(el)) continue;
+        if (el.closest('.dat-email-broker-wrapper, .dat-table-dot, .dat-notes-modal') || isInsideExpandedDetails(el)) continue;
 
         const txt = (el.innerText || el.textContent || '').trim();
         const phoneMatch = txt.match(PHONE_PATTERN);
@@ -541,7 +541,7 @@ export class CompanyNotesModule {
         };
       } else {
         cellsContainer.querySelectorAll('.dat-table-dot-phone').forEach((d) => {
-          if (!isInsideExpandedPanel(d)) d.remove();
+          if (!isInsideExpandedDetails(d)) d.remove();
         });
       }
 
@@ -554,7 +554,7 @@ export class CompanyNotesModule {
 
       // Check if this row already has a wrapped email (strictly in compact row, never inside expanded card)
       const existingWrapper = Array.from(cellsContainer.querySelectorAll('.dat-email-broker-wrapper'))
-        .find((w) => !isInsideExpandedPanel(w));
+        .find((w) => !isInsideExpandedDetails(w));
       if (existingWrapper) {
         const innerEmail = existingWrapper.querySelector('a') || Array.from(existingWrapper.children).find((c) => !c.classList.contains('dat-email-view-btn')) || existingWrapper;
         const txt = (innerEmail.innerText || innerEmail.textContent || '').trim();
@@ -579,7 +579,7 @@ export class CompanyNotesModule {
         for (const el of emailCandidates) {
           if (el.children.length > 0 && el.querySelector('a')) continue;
           if (el === companyLink) continue;
-          if (el.closest('.dat-table-dot, .dat-notes-modal, .dat-email-broker-wrapper') || isInsideExpandedPanel(el)) continue;
+          if (el.closest('.dat-table-dot, .dat-notes-modal, .dat-email-broker-wrapper') || isInsideExpandedDetails(el)) continue;
 
           const txt = (el.innerText || el.textContent || '').trim();
           const emailMatch = txt.match(EMAIL_PATTERN);
@@ -699,10 +699,10 @@ export class CompanyNotesModule {
       } else {
         // No email note in this row -> clean up wrappers and dots strictly in compact row
         cellsContainer.querySelectorAll('.dat-email-broker-wrapper').forEach((w) => {
-          if (!isInsideExpandedPanel(w)) unwrapEmailWrapper(w);
+          if (!isInsideExpandedDetails(w)) unwrapEmailWrapper(w);
         });
         cellsContainer.querySelectorAll('.dat-table-dot-email').forEach((d) => {
-          if (!isInsideExpandedPanel(d)) d.remove();
+          if (!isInsideExpandedDetails(d)) d.remove();
         });
       }
     }
