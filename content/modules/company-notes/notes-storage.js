@@ -47,10 +47,14 @@ export class NotesStorage {
     }
 
     const normName = IdentityParser.normalizeName(companyName);
-    if (normName && normName.length >= 3) {
+    if (normName && normName.length >= 2) {
       const match = Object.values(all).find((n) => {
+        if (normMC && n.mc) {
+          const noteMC = IdentityParser.normalizeMC(n.mc);
+          if (noteMC && noteMC !== normMC) return false;
+        }
         const nNorm = IdentityParser.normalizeName(n.companyName);
-        return nNorm && (nNorm === normName || nNorm.includes(normName) || normName.includes(nNorm));
+        return nNorm && nNorm === normName;
       });
       if (match) return match;
     }

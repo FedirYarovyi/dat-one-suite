@@ -414,15 +414,8 @@ export class CompanyNotesModule {
       let companyNote = null;
       if (companyName) {
         const normName = IdentityParser.normalizeName(companyName);
-        if (normName) {
-          if (coByName.has(normName)) {
-            companyNote = coByName.get(normName);
-          } else if (normName.length >= 3) {
-            companyNote = coList.find((co) => {
-              const n = IdentityParser.normalizeName(co.companyName);
-              return n && (n === normName || n.includes(normName) || normName.includes(n));
-            }) || null;
-          }
+        if (normName && coByName.has(normName)) {
+          companyNote = coByName.get(normName);
         }
       }
 
@@ -432,6 +425,19 @@ export class CompanyNotesModule {
         const mc = extractMCFromElement(cell) || extractMCFromElement(row);
         if (mc && coByMC.has(mc)) {
           companyNote = coByMC.get(mc);
+        }
+      }
+
+      // Safeguard: If note was matched by name, but cell/row contains an explicit MC that contradicts note's MC
+      if (companyNote && companyNote.mc && companyLink) {
+        const cell = companyLink.closest('.table-cell') || companyLink.parentElement;
+        const rowMC = extractMCFromElement(cell) || extractMCFromElement(row);
+        if (rowMC) {
+          const normRowMC = IdentityParser.normalizeMC(rowMC);
+          const normNoteMC = IdentityParser.normalizeMC(companyNote.mc);
+          if (normRowMC && normNoteMC && normRowMC !== normNoteMC) {
+            companyNote = null;
+          }
         }
       }
 
