@@ -1,0 +1,557 @@
+/* DAT One Suite - Unified Content Styles */
+
+/* Common Tooltip & Animations */
+@keyframes dat-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ========================================================
+   Sidebar Toggle Styles & Collapsing
+   ======================================================== */
+#dat-nav-toggle-tab,
+.dat-nav-toggle-tab,
+.dat-menu-toggle-tab {
+  position: fixed !important;
+  top: 50% !important;
+  left: 0 !important;
+  transform: translateY(-50%) !important;
+  z-index: 2147483647 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 22px !important;
+  height: 52px !important;
+  padding: 0 !important;
+  background: #0052cc !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.4) !important;
+  border-left: none !important;
+  border-radius: 0 8px 8px 0 !important;
+  cursor: pointer !important;
+  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3) !important;
+  user-select: none !important;
+  visibility: visible !important;
+  opacity: 0.9 !important;
+  pointer-events: auto !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  transition: width 0.15s ease, background 0.15s ease, opacity 0.15s ease !important;
+}
+
+#dat-nav-toggle-tab:hover,
+.dat-nav-toggle-tab:hover,
+.dat-menu-toggle-tab:hover {
+  opacity: 1 !important;
+  width: 28px !important;
+  background: #0747a6 !important;
+  box-shadow: 3px 0 12px rgba(0, 0, 0, 0.35) !important;
+}
+
+#dat-nav-toggle-tab .dat-toggle-icon {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 11px !important;
+  line-height: 1 !important;
+  color: #ffffff !important;
+}
+
+body.dat-sidebar-collapsed #dat-nav-toggle-tab,
+body.dat-sidebar-collapsed .dat-nav-toggle-tab,
+body.dat-sidebar-collapsed .dat-menu-toggle-tab {
+  background: #091e42 !important;
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 0.9 !important;
+}
+
+body.dat-sidebar-collapsed #dat-nav-toggle-tab:hover,
+body.dat-sidebar-collapsed .dat-nav-toggle-tab:hover,
+body.dat-sidebar-collapsed .dat-menu-toggle-tab:hover {
+  background: #172b4d !important;
+  opacity: 1 !important;
+}
+
+/* Sidebar Collapsed Selectors */
+body.dat-sidebar-collapsed aside,
+body.dat-sidebar-collapsed nav:not([role="navigation"].top-nav):not(.mat-tab-nav-bar),
+body.dat-sidebar-collapsed mat-sidenav:not(.mat-sidenav-end),
+body.dat-sidebar-collapsed mat-drawer:not(.mat-drawer-end),
+body.dat-sidebar-collapsed [data-testid*="sidebar"],
+body.dat-sidebar-collapsed [data-testid*="side-nav"],
+body.dat-sidebar-collapsed [class*="nav-drawer"]:not([class*="right"]),
+body.dat-sidebar-collapsed [class*="sidebar"]:not(#dat-nav-toggle-tab):not(.dat-menu-toggle-tab):not([class*="right"]):not([class*="detail"]),
+body.dat-sidebar-collapsed .dat-custom-hidden-sidebar {
+  display: none !important;
+  width: 0 !important;
+  min-width: 0 !important;
+  max-width: 0 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
+body.dat-sidebar-collapsed mat-sidenav-content,
+body.dat-sidebar-collapsed mat-drawer-content,
+body.dat-sidebar-collapsed [class*="content-wrapper"],
+body.dat-sidebar-collapsed [class*="main-content"],
+body.dat-sidebar-collapsed main {
+  margin-left: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  flex: 1 1 100% !important;
+}
+
+/* ========================================================
+   Company Notes Badges & UI
+   ======================================================== */
+
+/* Mini '+' Button next to company, phone, email */
+.dat-mini-add-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 18px !important;
+  height: 18px !important;
+  min-width: 18px !important;
+  padding: 0 !important;
+  margin-left: 6px !important;
+  border-radius: 4px !important;
+  background: #f4f5f7 !important;
+  color: #42526e !important;
+  border: 1px solid #c1c7d0 !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  line-height: 1 !important;
+  cursor: pointer !important;
+  vertical-align: middle !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08) !important;
+  transition: all 0.15s ease !important;
+  user-select: none !important;
+  z-index: 5 !important;
+}
+
+.dat-mini-add-btn:hover {
+  background: #0052cc !important;
+  color: #ffffff !important;
+  border-color: #0052cc !important;
+  transform: scale(1.15) !important;
+}
+
+/* Company Note Badge (rating + quote/preview) */
+.dat-company-note-badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  padding: 3px 9px !important;
+  margin-left: 8px !important;
+  border-radius: 5px !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+  vertical-align: middle !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12) !important;
+  transition: all 0.15s ease !important;
+  user-select: none !important;
+}
+
+.dat-company-note-badge:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.18) !important;
+}
+
+.dat-company-note-badge .dat-badge-quote {
+  font-weight: 400 !important;
+  opacity: 0.92 !important;
+  max-width: 200px !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+/* Phone Broker Badge */
+.dat-phone-broker-badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  padding: 2px 7px !important;
+  margin-left: 6px !important;
+  border-radius: 4px !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  border: none !important;
+  vertical-align: middle !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.16) !important;
+  transition: all 0.15s ease !important;
+  user-select: none !important;
+}
+
+.dat-phone-broker-badge:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25) !important;
+}
+
+/* Email Broker Colored Container & View Button */
+.dat-email-broker-wrapper {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  padding: 2px 7px !important;
+  margin: 0 4px !important;
+  border-radius: 4px !important;
+  vertical-align: middle !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.16) !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+}
+
+.dat-email-broker-wrapper a {
+  color: inherit !important;
+  text-decoration: underline !important;
+}
+
+.dat-email-view-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 3px !important;
+  padding: 1px 6px !important;
+  border-radius: 3px !important;
+  background: rgba(255, 255, 255, 0.28) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.45) !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+  line-height: 1.3 !important;
+}
+
+.dat-email-view-btn:hover {
+  background: rgba(255, 255, 255, 0.5) !important;
+  color: #ffffff !important;
+  transform: scale(1.05) !important;
+}
+
+/* Rating Color Themes */
+.dat-rating-good {
+  background: #2e7d32 !important;
+  color: #ffffff !important;
+}
+
+.dat-rating-neutral {
+  background: #0052cc !important;
+  color: #ffffff !important;
+}
+
+.dat-rating-warning {
+  background: #f57c00 !important;
+  color: #ffffff !important;
+}
+
+.dat-rating-dnu {
+  background: #de350b !important;
+  color: #ffffff !important;
+  animation: dat-pulse-dnu 2s infinite !important;
+}
+
+@keyframes dat-pulse-dnu {
+  0% { box-shadow: 0 0 0 0 rgba(222, 53, 11, 0.5); }
+  70% { box-shadow: 0 0 0 6px rgba(222, 53, 11, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(222, 53, 11, 0); }
+}
+
+/* View-Only Modal Elements */
+.dat-view-note-box {
+  background: #f4f5f7;
+  border: 1px solid #dfe1e6;
+  border-radius: 6px;
+  padding: 12px 14px;
+  margin-top: 10px;
+}
+
+.dat-view-note-content {
+  font-size: 13px;
+  line-height: 1.5;
+  color: #172b4d;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.dat-view-rating-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.dat-contact-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  background: #ebecf0;
+  color: #172b4d;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.dat-tag-chip {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 3px;
+  background: #ebecf0;
+  color: #42526e;
+  font-size: 11px;
+  margin-right: 5px;
+  margin-top: 4px;
+}
+
+/* Floating Quick Button is hidden as requested */
+.dat-notes-floating-btn {
+  display: none !important;
+}
+
+/* Modal Overlay */
+.dat-notes-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(9, 30, 66, 0.54);
+  backdrop-filter: blur(2px);
+  z-index: 1000000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  animation: dat-fade-in 0.15s ease-out;
+}
+
+.dat-notes-modal {
+  background: #ffffff;
+  width: 520px;
+  max-width: 95vw;
+  max-height: 90vh;
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(9, 30, 66, 0.25);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: dat-fade-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dat-notes-modal-header {
+  padding: 16px 20px;
+  background: #f4f5f7;
+  border-bottom: 1px solid #dfe1e6;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dat-notes-modal-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #172b4d;
+}
+
+.dat-notes-close-btn {
+  background: none;
+  border: none;
+  font-size: 22px;
+  color: #6b778c;
+  cursor: pointer;
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.dat-notes-close-btn:hover {
+  background: #ebecf0;
+  color: #172b4d;
+}
+
+.dat-notes-modal-body {
+  padding: 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.dat-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dat-field-row {
+  display: flex;
+  gap: 12px;
+}
+
+.dat-field-row .dat-field-group {
+  flex: 1;
+}
+
+.dat-field-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #5e6c84;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.dat-input, .dat-textarea, .dat-select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #dfe1e6;
+  border-radius: 6px;
+  font-size: 14px;
+  color: #172b4d;
+  background: #fafbfc;
+  box-sizing: border-box;
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+.dat-input:focus, .dat-textarea:focus, .dat-select:focus {
+  outline: none;
+  border-color: #4c9aff;
+  background: #ffffff;
+  box-shadow: 0 0 0 2px rgba(76, 154, 255, 0.2);
+}
+
+.dat-textarea {
+  resize: vertical;
+  min-height: 90px;
+  line-height: 1.4;
+}
+
+.dat-rating-selector {
+  display: flex;
+  gap: 8px;
+}
+
+.dat-rating-opt {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 6px 8px;
+  border: 1px solid #dfe1e6;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  background: #ffffff;
+  color: #42526e;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.dat-rating-opt input {
+  display: none;
+}
+
+.dat-rating-opt:hover {
+  background: #f4f5f7;
+}
+
+.dat-rating-opt.active-good {
+  background: #e3fcef;
+  border-color: #36b37e;
+  color: #006644;
+}
+
+.dat-rating-opt.active-warning {
+  background: #fff0b3;
+  border-color: #ffab00;
+  color: #172b4d;
+}
+
+.dat-rating-opt.active-dnu {
+  background: #ffebe6;
+  border-color: #de350b;
+  color: #bf2600;
+}
+
+.dat-rating-opt.active-neutral {
+  background: #deebff;
+  border-color: #0052cc;
+  color: #0747a6;
+}
+
+.dat-notes-modal-footer {
+  padding: 14px 20px;
+  background: #fafbfc;
+  border-top: 1px solid #dfe1e6;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dat-btn {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 1px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dat-btn-primary {
+  background: #0052cc;
+  color: #ffffff;
+}
+
+.dat-btn-primary:hover {
+  background: #0747a6;
+}
+
+.dat-btn-secondary {
+  background: #ebecf0;
+  color: #42526e;
+}
+
+.dat-btn-secondary:hover {
+  background: #dfe1e6;
+  color: #172b4d;
+}
+
+.dat-btn-danger {
+  background: #ffebe6;
+  color: #de350b;
+  border-color: #ffbdad;
+}
+
+.dat-btn-danger:hover {
+  background: #de350b;
+  color: #ffffff;
+}
+
+.dat-meta-info {
+  font-size: 11px;
+  color: #8993a4;
+}

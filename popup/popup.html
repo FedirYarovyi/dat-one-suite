@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DAT One Suite</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+<div class="popup-container">
+
+  <!-- Header -->
+  <header class="popup-header">
+    <div class="header-brand">
+      <img src="../icons/icon48.png" alt="Logo" class="logo-img">
+      <div>
+        <h2>DAT One Suite</h2>
+        <span class="version-tag">v1.1.0</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Navigation Tabs -->
+  <nav class="popup-tabs">
+    <button type="button" class="tab-btn active" data-tab="modules">Modules</button>
+    <button type="button" class="tab-btn" data-tab="notes">Notes (<span id="notes-counter">0</span>)</button>
+    <button type="button" class="tab-btn" data-tab="backup">Backup</button>
+  </nav>
+
+  <!-- ═══════════════════════════════════════════════════════
+       Tab 1: Module Toggles & Settings
+       ═══════════════════════════════════════════════════════ -->
+  <section id="tab-modules" class="tab-content active">
+
+    <div class="card">
+      <div class="setting-item">
+        <div class="setting-text">
+          <strong>Sidebar Collapse</strong>
+          <span>Toggle tab on screen edge (shortcut <code>Alt+S</code>)</span>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="toggle-sidebar-module" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="setting-item" style="border-top:1px solid #ebecf0;padding-top:10px;margin-top:6px;">
+        <div class="setting-text">
+          <strong>Company & Broker Notes</strong>
+          <span>🏢 by MC# / Name &nbsp;&bull;&nbsp; 👤 by Phone / Email</span>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="toggle-notes-module" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h4 style="margin:0 0 8px 0;font-size:13px;">Sidebar Selector</h4>
+      <label class="field-label" for="custom-sidebar-selector">Custom CSS selector (if DAT updates DOM):</label>
+      <input type="text" id="custom-sidebar-selector" class="popup-input" placeholder="aside.mat-drawer, .my-sidebar">
+      <button type="button" id="btn-save-selector" class="btn btn-secondary btn-sm" style="margin-top:6px;">Save</button>
+    </div>
+
+    <div class="info-box">
+      <strong>⌨️ Keyboard Shortcuts on dat.one:</strong>
+      <p>• <code>Alt + S</code> — Collapse / expand sidebar</p>
+    </div>
+
+    <div class="info-box" style="border-color:#36b37e;background:#e3fcef;margin-top:8px;">
+      <strong>📝 Notes Workflow:</strong>
+      <p>• <b>🏢 Company Note</b> — tied to <b>MC#</b> (rating, payment terms, reliability)</p>
+      <p>• <b>👤 Broker Note</b> — tied to specific <b>Phone / Ext / Email</b> of the broker</p>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════
+       Tab 2: Notes List
+       ═══════════════════════════════════════════════════════ -->
+  <section id="tab-notes" class="tab-content">
+
+    <div class="notes-toolbar">
+      <input type="text" id="notes-search-input" class="popup-input" placeholder="Search: name, MC#, phone, email...">
+    </div>
+
+    <!-- Create buttons -->
+    <div style="display:flex;gap:6px;margin-bottom:10px;">
+      <button type="button" id="btn-new-company-note" class="btn btn-primary btn-sm" style="flex:1;">🏢 New (Company)</button>
+      <button type="button" id="btn-new-contact-note" class="btn btn-secondary btn-sm" style="flex:1;">👤 New (Broker)</button>
+    </div>
+
+    <!-- Type filter pills -->
+    <div class="type-pills" style="margin-bottom:6px;">
+      <button type="button" class="pill active" data-type-filter="all">All</button>
+      <button type="button" class="pill" data-type-filter="company">🏢 Companies</button>
+      <button type="button" class="pill" data-type-filter="contact">👤 Brokers</button>
+    </div>
+
+    <!-- Rating filter pills -->
+    <div class="filter-pills">
+      <button type="button" class="pill active" data-filter="all">All</button>
+      <button type="button" class="pill" data-filter="good">🟢 Good</button>
+      <button type="button" class="pill" data-filter="neutral">🔵 Neutral</button>
+      <button type="button" class="pill" data-filter="warning">🟡 Warning</button>
+      <button type="button" class="pill" data-filter="dnu">⛔ DNU</button>
+    </div>
+
+    <div id="notes-list-container" class="notes-list"></div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════
+       Tab 3: Backup
+       ═══════════════════════════════════════════════════════ -->
+  <section id="tab-backup" class="tab-content">
+    <div class="card">
+      <h4 style="margin:0 0 6px 0;font-size:14px;">Backup & Restore</h4>
+      <p style="font-size:12px;color:#5e6c84;margin:0 0 12px 0;">Export or import all saved company and broker notes as JSON.</p>
+      <div style="display:flex;gap:8px;">
+        <button type="button" id="btn-export-backup" class="btn btn-primary" style="flex:1;">📥 Export JSON</button>
+        <label class="btn btn-secondary" style="flex:1;text-align:center;cursor:pointer;">
+          📤 Import JSON
+          <input type="file" id="file-import-backup" accept=".json" style="display:none;">
+        </label>
+      </div>
+    </div>
+    <div class="card">
+      <h4 style="margin:0 0 6px 0;font-size:13px;color:#de350b;">Danger Zone</h4>
+      <p style="font-size:12px;color:#5e6c84;margin:0 0 10px 0;">Permanently deletes all notes. Cannot be undone.</p>
+      <button type="button" id="btn-clear-all-notes" class="btn btn-danger btn-sm">Clear All Notes</button>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════
+       Inline Edit Modal
+       ═══════════════════════════════════════════════════════ -->
+  <div id="popup-note-modal" class="popup-modal-overlay" style="display:none;">
+    <div class="popup-modal-card">
+      <h4 id="popup-modal-title" style="margin:0 0 10px 0;">Note</h4>
+
+      <!-- Company fields -->
+      <div id="pm-company-fields">
+        <div class="form-group">
+          <label>Company Name:</label>
+          <input type="text" id="pm-input-company-name" class="popup-input" placeholder="Company Name">
+        </div>
+        <div style="display:flex;gap:8px;">
+          <div class="form-group" style="flex:1;">
+            <label>MC #:</label>
+            <input type="text" id="pm-input-mc" class="popup-input" placeholder="123456">
+          </div>
+          <div class="form-group" style="flex:1;">
+            <label>DOT #:</label>
+            <input type="text" id="pm-input-dot" class="popup-input" placeholder="987654">
+          </div>
+        </div>
+      </div>
+
+      <!-- Broker fields -->
+      <div id="pm-contact-fields" style="display:none;">
+        <div style="display:flex;gap:8px;">
+          <div class="form-group" style="flex:2;">
+            <label>Broker Name:</label>
+            <input type="text" id="pm-input-contact-name" class="popup-input" placeholder="e.g. Jack M.">
+          </div>
+          <div class="form-group" style="flex:1;">
+            <label>Ext.:</label>
+            <input type="text" id="pm-input-ext" class="popup-input" placeholder="102">
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <div class="form-group" style="flex:1;">
+            <label>Broker Email:</label>
+            <input type="text" id="pm-input-emails" class="popup-input" placeholder="jack@company.com">
+          </div>
+          <div class="form-group" style="flex:1;">
+            <label>Company Phone:</label>
+            <input type="text" id="pm-input-phones" class="popup-input" placeholder="(800) 555-0199">
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <div class="form-group" style="flex:1;">
+            <label>Company (reference):</label>
+            <input type="text" id="pm-input-contact-company" class="popup-input" placeholder="Company Name">
+          </div>
+          <div class="form-group" style="flex:1;">
+            <label>MC # (reference):</label>
+            <input type="text" id="pm-input-contact-mc" class="popup-input" placeholder="123456">
+          </div>
+        </div>
+      </div>
+
+      <!-- Shared fields -->
+      <div class="form-group">
+        <label>Status:</label>
+        <select id="pm-input-rating" class="popup-input">
+          <option value="good">🟢 Good</option>
+          <option value="neutral" selected>🔵 Neutral</option>
+          <option value="warning">🟡 Warning</option>
+          <option value="dnu">⛔ DNU (Do Not Use)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Note:</label>
+        <textarea id="pm-input-note" class="popup-input" rows="3" placeholder="Terms, negotiation notes, contacts..."></textarea>
+      </div>
+
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px;">
+        <button type="button" id="pm-btn-cancel" class="btn btn-secondary btn-sm">Cancel</button>
+        <button type="button" id="pm-btn-save" class="btn btn-primary btn-sm">Save</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+<script src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,79 @@
+{
+  "manifest_version": 3,
+  "name": "DAT One Suite (Notes & Sidebar)",
+  "version": "1.1.0",
+  "description": "Модульное расширение для DAT One: скрытие боковой панели и умные заметки по компаниям (MC#, Телефон, Email, Имя).",
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "https://*.dat.one/*",
+    "https://*.dat.com/*",
+    "http://*.dat.one/*",
+    "http://*.dat.com/*"
+  ],
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    },
+    "default_title": "DAT One Suite"
+  },
+  "background": {
+    "service_worker": "background/service-worker.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.dat.one/*",
+        "https://*.dat.com/*",
+        "http://*.dat.one/*",
+        "http://*.dat.com/*"
+      ],
+      "js": ["content/loader.js"],
+      "css": ["content/content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "content/*",
+        "content/core/*",
+        "content/modules/*",
+        "content/modules/**/*",
+        "icons/*",
+        "styles/*"
+      ],
+      "matches": [
+        "https://*.dat.one/*",
+        "https://*.dat.com/*",
+        "http://*.dat.one/*",
+        "http://*.dat.com/*"
+      ]
+    }
+  ],
+  "commands": {
+    "toggle-sidebar": {
+      "suggested_key": {
+        "default": "Alt+S",
+        "mac": "Alt+S"
+      },
+      "description": "Свернуть / развернуть боковую панель"
+    },
+    "quick-note": {
+      "suggested_key": {
+        "default": "Alt+N",
+        "mac": "Alt+N"
+      },
+      "description": "Открыть заметки по компании"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
