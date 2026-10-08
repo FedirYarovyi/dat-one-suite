@@ -79,8 +79,18 @@ export class IdentityParser {
       .toString()
       .trim()
       .toLowerCase()
-      .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, '')
-      .replace(/\b(llc|inc|corp|co|logistics|transport|transportation|freight|services|express|group)\b/g, '')
+      // 1. Standardize corporate abbreviation variants before stripping punctuation
+      .replace(/\bl\.l\.c\.?\b/g, 'llc')
+      .replace(/\bl\.p\.?\b/g, 'lp')
+      .replace(/\bl\.l\.p\.?\b/g, 'llp')
+      .replace(/\bincorporated\b/g, 'inc')
+      .replace(/\bcorporation\b/g, 'corp')
+      .replace(/\blimited liability company\b/g, 'llc')
+      .replace(/\blimited\b/g, 'ltd')
+      .replace(/\bcompany$/g, 'co')
+      // 2. Remove punctuation (commas, periods, quotes, dashes, slashes, brackets)
+      .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, ' ')
+      // 3. Collapse multiple whitespace and trim
       .replace(/\s+/g, ' ')
       .trim();
   }
