@@ -70,6 +70,14 @@ export function extractMCFromElement(el) {
 }
 
 /**
+ * Checks if an element is strictly inside the expanded details panel / company card
+ */
+export function isInsideExpandedPanel(el) {
+  if (!el || !el.closest) return false;
+  return !!el.closest('dat-company, app-company-details, [data-testid*="company-card"], .details-container, .xl-details, dat-load-details, [class*="load-details"]');
+}
+
+/**
  * Safely unwraps an email wrapper restoring original DOM structure and styles
  */
 export function unwrapEmailWrapper(wrapper) {
@@ -98,6 +106,7 @@ export class CompanyNotesModule {
     this.scrollTimer = null;
     this.storageUnwatch = null;
     this.isScanning = false;
+    this.scanPending = false;
     this.emailFullWrapper = false;
   }
 
@@ -145,10 +154,10 @@ export class CompanyNotesModule {
       // If user clicks a row in the search results table
       const row = e.target.closest('.row-container, .row-cells, .table-cell, .ag-row, tr, [role="row"], .rt-tr, .dat-row, [data-testid*="row"]');
       if (row) {
-        // Fast scan after row expand animation begins
-        setTimeout(() => this.scanPage(), 30);
-        setTimeout(() => this.scanPage(), 150);
-        setTimeout(() => this.scanPage(), 350);
+        // Fast non-destructive scans as row expands and Angular populates details
+        setTimeout(() => this.scanPage(), 50);
+        setTimeout(() => this.scanPage(), 200);
+        setTimeout(() => this.scanPage(), 450);
       }
     };
     document.addEventListener('click', this.tableClickListener, { passive: true });
@@ -233,10 +242,9 @@ export class CompanyNotesModule {
     });
 
     this.urlUnwatch = domObserver.onUrlChange(() => {
-      setTimeout(() => {
-        this.removeAllBadges();
-        this.scanPage();
-      }, 300);
+      // Smooth rescan on URL navigation without destroying existing badges/wrappers
+      clearTimeout(this.scanTimer);
+      this.scanTimer = setTimeout(() => this.scanPage(), 100);
     });
 
     setTimeout(() => this.scanPage(), 200);
@@ -262,7 +270,10 @@ export class CompanyNotesModule {
       this.disable();
       return;
     }
-    if (this.isScanning) return;
+    if (this.isScanning) {
+      this.scanPending = true;
+      return;
+    }
     this.isScanning = true;
 
     try {
@@ -273,6 +284,10 @@ export class CompanyNotesModule {
       await this.scanCompanyCards();
     } finally {
       this.isScanning = false;
+      if (this.scanPending) {
+        this.scanPending = false;
+        setTimeout(() => this.scanPage(), 50);
+      }
     }
   }
 
@@ -312,7 +327,9 @@ export class CompanyNotesModule {
     // If no notes exist at all, clear any residual dots & wrappers
     if (coList.length === 0 && brkList.length === 0) {
       document.querySelectorAll('.dat-table-dot').forEach((d) => d.remove());
-      document.querySelectorAll('.row-cells .dat-email-broker-wrapper, .table-cell .dat-email-broker-wrapper').forEach(unwrapEmailWrapper);
+      document.querySelectorAll('.row-cells .dat-email-broker-wrapper, .table-cell .dat-email-broker-wrapper').forEach((w) => {
+        if (!isInsideExpandedPanel(w)) unwrapEmailWrapper(w);
+      });
       return;
     }
 
@@ -389,7 +406,7 @@ export class CompanyNotesModule {
 
       // Direct search inside dat-company or .company-prefer-or-blocked
       const directCompLink = cellsContainer.querySelector('dat-company a, .company-prefer-or-blocked a, a.mat-tooltip-trigger');
-      if (directCompLink) {
+      if (directCompLink && !isInsideExpandedPanel(directCompLink)) {
         const txt = directCompLink.innerText?.trim();
         if (txt && !PHONE_PATTERN.test(txt) && !EMAIL_PATTERN.test(txt)) {
           companyLink = directCompLink;
@@ -400,6 +417,7 @@ export class CompanyNotesModule {
       // Fallback: search links in row
       if (!companyLink) {
         for (const a of cellsContainer.querySelectorAll('.table-cell a, a')) {
+          if (isInsideExpandedPanel(a)) continue;
           const txt = a.innerText?.trim();
           if (!txt || PHONE_PATTERN.test(txt) || EMAIL_PATTERN.test(txt)) continue;
           const norm = IdentityParser.normalizeName(txt);
@@ -479,7 +497,7 @@ export class CompanyNotesModule {
       for (const el of phoneCandidates) {
         if (el.children.length > 0 && el.querySelector('a')) continue;
         if (el === companyLink) continue;
-        if (el.closest('.dat-email-broker-wrapper, .dat-table-dot, .dat-notes-modal')) continue;
+        if (el.closest('.dat-email-broker-wrapper, .dat-table-dot, .dat-notes-modal') || isInsideExpandedPanel(el)) continue;
 
         const txt = (el.innerText || el.textContent || '').trim();
         const phoneMatch = txt.match(PHONE_PATTERN);
@@ -522,7 +540,9 @@ export class CompanyNotesModule {
           notesModal.open(phoneBrokerNote, 'broker', 'view');
         };
       } else {
-        cellsContainer.querySelectorAll('.dat-table-dot-phone').forEach((d) => d.remove());
+        cellsContainer.querySelectorAll('.dat-table-dot-phone').forEach((d) => {
+          if (!isInsideExpandedPanel(d)) d.remove();
+        });
       }
 
       // ──────────────────────────────────────────────────────────────────────
@@ -532,8 +552,9 @@ export class CompanyNotesModule {
       let emailBrokerNote = null;
       let emailMatches = [];
 
-      // Check if this row already has a wrapped email
-      const existingWrapper = cellsContainer.querySelector('.dat-email-broker-wrapper');
+      // Check if this row already has a wrapped email (strictly in compact row, never inside expanded card)
+      const existingWrapper = Array.from(cellsContainer.querySelectorAll('.dat-email-broker-wrapper'))
+        .find((w) => !isInsideExpandedPanel(w));
       if (existingWrapper) {
         const innerEmail = existingWrapper.querySelector('a') || Array.from(existingWrapper.children).find((c) => !c.classList.contains('dat-email-view-btn')) || existingWrapper;
         const txt = (innerEmail.innerText || innerEmail.textContent || '').trim();
@@ -558,7 +579,7 @@ export class CompanyNotesModule {
         for (const el of emailCandidates) {
           if (el.children.length > 0 && el.querySelector('a')) continue;
           if (el === companyLink) continue;
-          if (el.closest('.dat-table-dot, .dat-notes-modal, .dat-email-broker-wrapper')) continue;
+          if (el.closest('.dat-table-dot, .dat-notes-modal, .dat-email-broker-wrapper') || isInsideExpandedPanel(el)) continue;
 
           const txt = (el.innerText || el.textContent || '').trim();
           const emailMatch = txt.match(EMAIL_PATTERN);
@@ -676,9 +697,13 @@ export class CompanyNotesModule {
           };
         }
       } else {
-        // No email note in this row -> clean up wrappers and dots
-        cellsContainer.querySelectorAll('.dat-email-broker-wrapper').forEach(unwrapEmailWrapper);
-        cellsContainer.querySelectorAll('.dat-table-dot-email').forEach((d) => d.remove());
+        // No email note in this row -> clean up wrappers and dots strictly in compact row
+        cellsContainer.querySelectorAll('.dat-email-broker-wrapper').forEach((w) => {
+          if (!isInsideExpandedPanel(w)) unwrapEmailWrapper(w);
+        });
+        cellsContainer.querySelectorAll('.dat-table-dot-email').forEach((d) => {
+          if (!isInsideExpandedPanel(d)) d.remove();
+        });
       }
     }
   }
@@ -889,10 +914,25 @@ export class CompanyNotesModule {
         emailEl.parentElement?.querySelector(`.dat-mini-add-btn[data-email="${normEmail}"]`)?.remove();
 
         const meta = ratingMeta(brokerNote.rating);
-        const wrapper = document.createElement('span');
+        let wrapper = emailEl.closest('.dat-email-broker-wrapper');
+        if (wrapper) {
+          if (wrapper.dataset.brokerId !== brokerNote.id || wrapper.dataset.rating !== brokerNote.rating) {
+            wrapper.className = `dat-email-broker-wrapper ${meta.cls}`;
+            wrapper.style.backgroundColor = meta.bg;
+            wrapper.style.color = meta.color;
+            wrapper.dataset.brokerId = brokerNote.id;
+            wrapper.dataset.rating = brokerNote.rating;
+            emailEl.style.color = meta.color;
+          }
+          continue;
+        }
+
+        wrapper = document.createElement('span');
         wrapper.className = `dat-email-broker-wrapper ${meta.cls}`;
         wrapper.style.backgroundColor = meta.bg;
         wrapper.style.color = meta.color;
+        wrapper.dataset.brokerId = brokerNote.id;
+        wrapper.dataset.rating = brokerNote.rating;
 
         emailEl.parentNode.insertBefore(wrapper, emailEl);
         wrapper.appendChild(emailEl);
