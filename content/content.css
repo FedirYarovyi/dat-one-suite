@@ -201,7 +201,6 @@ body.dat-sidebar-collapsed main {
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25) !important;
 }
 
-/* Email Broker Colored Container & View Button */
 .dat-email-broker-wrapper {
   display: inline-flex !important;
   align-items: center !important;
@@ -214,11 +213,28 @@ body.dat-sidebar-collapsed main {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
   font-size: 12px !important;
   font-weight: 500 !important;
+  cursor: pointer !important;
 }
 
 .dat-email-broker-wrapper a {
   color: inherit !important;
   text-decoration: underline !important;
+  cursor: pointer !important;
+}
+
+/* Compact Table Rows: Email Wrapper Adjustments */
+.row-cells .dat-email-broker-wrapper,
+.table-cell .dat-email-broker-wrapper {
+  margin: 1px 0 !important;
+  font-size: 11px !important;
+  padding: 1px 6px !important;
+  max-width: 100% !important;
+}
+
+.row-cells .dat-email-broker-wrapper .dat-email-view-btn,
+.table-cell .dat-email-broker-wrapper .dat-email-view-btn {
+  padding: 0 4px !important;
+  font-size: 9px !important;
 }
 
 .dat-email-view-btn {
@@ -242,6 +258,7 @@ body.dat-sidebar-collapsed main {
   color: #ffffff !important;
   transform: scale(1.05) !important;
 }
+
 
 /* Rating Color Themes */
 .dat-rating-good {
@@ -555,3 +572,46 @@ body.dat-sidebar-collapsed main {
   font-size: 11px;
   color: #8993a4;
 }
+
+/* ========================================================
+   Table Rows Note Dots (Company & Broker)
+   ======================================================== */
+.dat-table-dot {
+  display: inline-block !important;
+  width: 9px !important;
+  height: 9px !important;
+  min-width: 9px !important;
+  min-height: 9px !important;
+  border-radius: 50% !important;
+  margin-left: 6px !important;
+  margin-right: 2px !important;
+  vertical-align: middle !important;
+  cursor: pointer !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25) !important;
+  transition: transform 0.15s ease, box-shadow 0.15s ease !important;
+  flex-shrink: 0 !important;
+  z-index: 5 !important;
+}
+
+.dat-table-dot:hover {
+  transform: scale(1.4) !important;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.35) !important;
+}
+
+.dat-dot-good {
+  background-color: #2e7d32 !important;
+}
+
+.dat-dot-neutral {
+  background-color: #0052cc !important;
+}
+
+.dat-dot-warning {
+  background-color: #f57c00 !important;
+}
+
+.dat-dot-dnu {
+  background-color: #de350b !important;
+  animation: dat-pulse-dnu 2s infinite !important;
+}
+

@@ -14,6 +14,7 @@
  */
 import { domObserver } from '../../core/dom-observer.js';
 import { eventBus } from '../../core/event-bus.js';
+import { StorageService } from '../../core/storage.js';
 import { IdentityParser } from './identity-parser.js';
 import { NotesStorage } from './notes-storage.js';
 import { notesModal, ratingMeta } from './ui-modal.js';
@@ -68,32 +69,58 @@ export function extractMCFromElement(el) {
   return '';
 }
 
+/**
+ * Safely unwraps an email wrapper restoring original DOM structure and styles
+ */
+export function unwrapEmailWrapper(wrapper) {
+  if (!wrapper || !wrapper.parentNode) return;
+  wrapper.querySelector('.dat-email-view-btn')?.remove();
+  Array.from(wrapper.children).forEach((child) => {
+    if (child.style) child.style.color = '';
+  });
+  while (wrapper.firstChild) {
+    wrapper.parentNode.insertBefore(wrapper.firstChild, wrapper);
+  }
+  wrapper.remove();
+}
+
 export class CompanyNotesModule {
   constructor() {
     this.id = 'company-notes';
     this.name = 'Company & Broker Notes';
-    this.description = 'Displays company and broker notes strictly in the company card.';
+    this.description = 'Displays company and broker notes in table rows and company cards.';
 
     this.mutationObserver = null;
     this.scanTimer = null;
     this.urlUnwatch = null;
     this.tableClickListener = null;
+    this.scrollListener = null;
+    this.scrollTimer = null;
+    this.storageUnwatch = null;
     this.isScanning = false;
   }
 
   async init() {
     eventBus.on('notes:updated', () => this.refreshAll());
     eventBus.on('notes:deleted', () => this.refreshAll());
+
+    this.storageUnwatch = StorageService.onChanged((changes) => {
+      if (changes['company-notes-data'] || changes['contact-notes-data']) {
+        this.refreshAll();
+      }
+    });
   }
 
   enable() {
     this.startObserver();
     this.setupFastRowClickListener();
+    this.setupScrollListener();
   }
 
   disable() {
     this.stopObserver();
     this.removeFastRowClickListener();
+    this.removeScrollListener();
     this.removeAllBadges();
   }
 
@@ -103,11 +130,12 @@ export class CompanyNotesModule {
   setupFastRowClickListener() {
     this.tableClickListener = (e) => {
       // If user clicks a row in the search results table
-      const row = e.target.closest('.ag-row, tr, [role="row"], .rt-tr, .dat-row, [data-testid*="row"]');
+      const row = e.target.closest('.row-container, .row-cells, .table-cell, .ag-row, tr, [role="row"], .rt-tr, .dat-row, [data-testid*="row"]');
       if (row) {
         // Fast scan after row expand animation begins
         setTimeout(() => this.scanPage(), 30);
         setTimeout(() => this.scanPage(), 150);
+        setTimeout(() => this.scanPage(), 350);
       }
     };
     document.addEventListener('click', this.tableClickListener, { passive: true });
@@ -121,14 +149,31 @@ export class CompanyNotesModule {
   }
 
   // ──────────────────────────────────────────────────────────────────────────
+  // Scroll Listener for virtualized grid rows
+  // ──────────────────────────────────────────────────────────────────────────
+  setupScrollListener() {
+    this.scrollListener = () => {
+      clearTimeout(this.scrollTimer);
+      this.scrollTimer = setTimeout(() => this.scanTableRows(), 60);
+    };
+    window.addEventListener('scroll', this.scrollListener, { passive: true, capture: true });
+  }
+
+  removeScrollListener() {
+    if (this.scrollListener) {
+      window.removeEventListener('scroll', this.scrollListener, { capture: true });
+      this.scrollListener = null;
+    }
+    clearTimeout(this.scrollTimer);
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
   // High-performance filtered Observer
   // ──────────────────────────────────────────────────────────────────────────
   startObserver() {
     if (this.mutationObserver) return;
 
     this.mutationObserver = new MutationObserver((mutations) => {
-      // 🚀 Performance Gate: Only schedule scan if mutation touches load details or company cards!
-      // This filters out 95% of timer and scrolling noise.
       let isRelevant = false;
       for (let i = 0; i < mutations.length; i++) {
         const addedNodes = mutations[i].addedNodes;
@@ -140,9 +185,20 @@ export class CompanyNotesModule {
               tag === 'dat-company' ||
               tag === 'app-company-details' ||
               tag === 'dat-load-details' ||
+              tag === 'cdk-virtual-scroll-viewport' ||
+              tag === 'dat-search-table' ||
               node.classList.contains('details-container') ||
               node.classList.contains('xl-details') ||
-              node.querySelector?.('dat-company, app-company-details, [data-testid*="company-card"]')
+              node.classList.contains('row-container') ||
+              node.classList.contains('row-cells') ||
+              node.classList.contains('table-cell') ||
+              node.classList.contains('loads-table') ||
+              node.classList.contains('cdk-virtual-scroll-content-wrapper') ||
+              node.classList.contains('ag-row') ||
+              node.classList.contains('ag-center-cols-container') ||
+              node.classList.contains('ag-body-viewport') ||
+              node.classList.contains('ag-root') ||
+              node.querySelector?.('dat-company, app-company-details, [data-testid*="company-card"], .row-container, .row-cells, .ag-row')
             ) {
               isRelevant = true;
               break;
@@ -189,31 +245,392 @@ export class CompanyNotesModule {
   // Fast Targeted Scan
   // ──────────────────────────────────────────────────────────────────────────
   async scanPage() {
+    if (!StorageService.isAvailable()) {
+      this.disable();
+      return;
+    }
     if (this.isScanning) return;
     this.isScanning = true;
 
     try {
-      // 🚀 Zero wildcard search: query targeted tags directly
-      const companyCards = Array.from(document.querySelectorAll('dat-company, [data-testid*="company-card"], app-company-details'));
+      // 1. Scan compact table rows (circles without text for company & broker)
+      await this.scanTableRows();
 
-      for (const card of companyCards) {
-        // Fast checks: must be connected
-        if (!card.isConnected) continue;
-
-        // Skip anything inside compact table rows
-        if (card.closest('.ag-row, tr, [role="row"], .rt-tr, .dat-row, [data-testid*="row"]')) {
-          continue;
-        }
-
-        // Skip left-hand load details columns
-        if (card.closest('.details-column:first-child, [class*="left-column"], [class*="trip-details"]')) {
-          continue;
-        }
-
-        await this.processCompanyCard(card);
-      }
+      // 2. Scan expanded company card (details panel)
+      await this.scanCompanyCards();
     } finally {
       this.isScanning = false;
+    }
+  }
+
+  async scanCompanyCards() {
+    // Zero wildcard search: query targeted tags directly
+    const companyCards = Array.from(document.querySelectorAll('dat-company, [data-testid*="company-card"], app-company-details'));
+
+    for (const card of companyCards) {
+      if (!card.isConnected) continue;
+
+      // Skip anything inside compact table cells (only compact cells, NOT the expanded details panel)
+      if (card.closest('.table-cell, .row-cells')) {
+        continue;
+      }
+
+      // Skip left-hand load details columns
+      if (card.closest('.details-column:first-child, [class*="left-column"], [class*="trip-details"]')) {
+        continue;
+      }
+
+      await this.processCompanyCard(card);
+    }
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Table Rows Scan (Dots without text: Company & Broker)
+  // ──────────────────────────────────────────────────────────────────────────
+  async scanTableRows() {
+    const [allCompanyNotes, allBrokerNotes] = await Promise.all([
+      NotesStorage.getAllCompanyNotes(),
+      NotesStorage.getAllBrokerNotes()
+    ]);
+
+    const coList = Object.values(allCompanyNotes);
+    const brkList = Object.values(allBrokerNotes).filter((b) => b && !b._aliasFor);
+
+    // If no notes exist at all, clear any residual dots & wrappers
+    if (coList.length === 0 && brkList.length === 0) {
+      document.querySelectorAll('.dat-table-dot').forEach((d) => d.remove());
+      document.querySelectorAll('.row-cells .dat-email-broker-wrapper, .table-cell .dat-email-broker-wrapper').forEach(unwrapEmailWrapper);
+      return;
+    }
+
+    // Build fast lookup maps
+    const coByMC = new Map();
+    const coByName = new Map();
+    for (const co of coList) {
+      if (co.mc) {
+        const normMC = IdentityParser.normalizeMC(co.mc);
+        if (normMC) coByMC.set(normMC, co);
+      }
+      if (co.companyName) {
+        const normName = IdentityParser.normalizeName(co.companyName);
+        if (normName) coByName.set(normName, co);
+      }
+    }
+
+    // Rating positivity hierarchy: Good (4) > Neutral (3) > Warning (2) > DNU (1)
+    const RATING_SCORE = { good: 4, neutral: 3, warning: 2, dnu: 1 };
+    const brkByPhone = new Map();
+    const brkByEmail = new Map();
+    for (const brk of brkList) {
+      const phones = [];
+      if (brk.phone) phones.push(brk.phone);
+      if (Array.isArray(brk.phones)) phones.push(...brk.phones);
+
+      for (const p of phones) {
+        const normP = IdentityParser.normalizePhone(p);
+        if (normP) {
+          if (!brkByPhone.has(normP)) brkByPhone.set(normP, []);
+          brkByPhone.get(normP).push(brk);
+        }
+      }
+
+      const emails = [];
+      if (brk.email) emails.push(brk.email);
+      if (Array.isArray(brk.emails)) emails.push(...brk.emails);
+
+      for (const em of emails) {
+        const normE = IdentityParser.normalizeEmail(em);
+        if (normE) {
+          if (!brkByEmail.has(normE)) brkByEmail.set(normE, []);
+          brkByEmail.get(normE).push(brk);
+        }
+      }
+    }
+
+    // Sort broker arrays by positivity descending (index 0 = most positive)
+    for (const brokers of brkByPhone.values()) {
+      brokers.sort((a, b) => (RATING_SCORE[b.rating] || 0) - (RATING_SCORE[a.rating] || 0));
+    }
+    for (const brokers of brkByEmail.values()) {
+      brokers.sort((a, b) => (RATING_SCORE[b.rating] || 0) - (RATING_SCORE[a.rating] || 0));
+    }
+
+    // Query DAT One table row containers
+    let rows = Array.from(document.querySelectorAll('.row-container'));
+    if (rows.length === 0) {
+      rows = Array.from(document.querySelectorAll('.row-cells, [role="row"]:not([role="columnheader"]), tr'));
+    }
+
+    for (const row of rows) {
+      if (!row.isConnected) continue;
+      if (row.classList.contains('ag-header-row') || row.closest('.ag-header, mat-header-row')) continue;
+
+      // Restrict search strictly to compact cells row (excluding expanded details)
+      const cellsContainer = row.querySelector('.row-cells') || row;
+
+      // ──────────────────────────────────────────────────────────────────────
+      // 1. Company Column & Dot
+      // ──────────────────────────────────────────────────────────────────────
+      let companyLink = null;
+      let companyName = '';
+
+      // Direct search inside dat-company or .company-prefer-or-blocked
+      const directCompLink = cellsContainer.querySelector('dat-company a, .company-prefer-or-blocked a, a.mat-tooltip-trigger');
+      if (directCompLink) {
+        const txt = directCompLink.innerText?.trim();
+        if (txt && !PHONE_PATTERN.test(txt) && !EMAIL_PATTERN.test(txt)) {
+          companyLink = directCompLink;
+          companyName = txt;
+        }
+      }
+
+      // Fallback: search links in row
+      if (!companyLink) {
+        for (const a of cellsContainer.querySelectorAll('.table-cell a, a')) {
+          const txt = a.innerText?.trim();
+          if (!txt || PHONE_PATTERN.test(txt) || EMAIL_PATTERN.test(txt)) continue;
+          const norm = IdentityParser.normalizeName(txt);
+          if (norm && (coByName.has(norm) || coList.some((c) => IdentityParser.normalizeName(c.companyName) === norm))) {
+            companyLink = a;
+            companyName = txt;
+            break;
+          }
+        }
+      }
+
+      let companyNote = null;
+      if (companyName) {
+        const normName = IdentityParser.normalizeName(companyName);
+        if (normName) {
+          if (coByName.has(normName)) {
+            companyNote = coByName.get(normName);
+          } else if (normName.length >= 3) {
+            companyNote = coList.find((co) => {
+              const n = IdentityParser.normalizeName(co.companyName);
+              return n && (n === normName || n.includes(normName) || normName.includes(n));
+            }) || null;
+          }
+        }
+      }
+
+      // If no note found yet, check MC in cell/row
+      if (!companyNote && companyLink) {
+        const cell = companyLink.closest('.table-cell') || companyLink.parentElement;
+        const mc = extractMCFromElement(cell) || extractMCFromElement(row);
+        if (mc && coByMC.has(mc)) {
+          companyNote = coByMC.get(mc);
+        }
+      }
+
+      if (companyLink && companyNote) {
+        const meta = ratingMeta(companyNote.rating);
+        const parent = companyLink.parentElement || companyLink;
+        let dot = parent.querySelector('.dat-table-dot-company');
+        if (!dot) {
+          dot = document.createElement('span');
+          dot.className = `dat-table-dot dat-table-dot-company dat-dot-${companyNote.rating}`;
+          companyLink.insertAdjacentElement('afterend', dot);
+        }
+
+        if (dot.dataset.noteId !== companyNote.id || dot.dataset.rating !== companyNote.rating) {
+          dot.className = `dat-table-dot dat-table-dot-company dat-dot-${companyNote.rating}`;
+          dot.dataset.noteId = companyNote.id;
+          dot.dataset.rating = companyNote.rating;
+          dot.style.backgroundColor = meta.bg;
+        }
+
+        dot.title = `Company: ${companyNote.companyName || 'Company'} (${meta.label})\nNote: ${companyNote.note || '— No note text —'}\nClick to view note`;
+        dot.onclick = (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          notesModal.open(companyNote, 'company', 'view');
+        };
+      } else if (companyLink) {
+        (companyLink.parentElement || companyLink).querySelector('.dat-table-dot-company')?.remove();
+      }
+
+      // ──────────────────────────────────────────────────────────────────────
+      // 2. Phone Contact & Broker Dot (Phones keep circle dot)
+      // ──────────────────────────────────────────────────────────────────────
+      let phoneElement = null;
+      let phoneBrokerNote = null;
+      let phoneMatches = [];
+
+      const phoneCandidates = cellsContainer.querySelectorAll('a, span, div');
+      for (const el of phoneCandidates) {
+        if (el.children.length > 0 && el.querySelector('a')) continue;
+        if (el === companyLink) continue;
+        if (el.closest('.dat-email-broker-wrapper, .dat-table-dot, .dat-notes-modal')) continue;
+
+        const txt = (el.innerText || el.textContent || '').trim();
+        const phoneMatch = txt.match(PHONE_PATTERN);
+        if (phoneMatch) {
+          const normPhone = IdentityParser.normalizePhone(phoneMatch[0]);
+          if (normPhone && brkByPhone.has(normPhone)) {
+            phoneMatches = brkByPhone.get(normPhone);
+            phoneBrokerNote = phoneMatches[0];
+            phoneElement = el.matches('a') ? el : (el.closest('a') || el);
+            break;
+          }
+        }
+      }
+
+      if (phoneElement && phoneBrokerNote) {
+        const meta = ratingMeta(phoneBrokerNote.rating);
+        const parent = phoneElement.parentElement || phoneElement;
+        let dot = parent.querySelector('.dat-table-dot-broker');
+        if (!dot) {
+          dot = document.createElement('span');
+          dot.className = `dat-table-dot dat-table-dot-broker dat-dot-${phoneBrokerNote.rating}`;
+          phoneElement.insertAdjacentElement('afterend', dot);
+        }
+
+        if (dot.dataset.brokerId !== phoneBrokerNote.id || dot.dataset.rating !== phoneBrokerNote.rating) {
+          dot.className = `dat-table-dot dat-table-dot-broker dat-dot-${phoneBrokerNote.rating}`;
+          dot.dataset.brokerId = phoneBrokerNote.id;
+          dot.dataset.rating = phoneBrokerNote.rating;
+          dot.style.backgroundColor = meta.bg;
+        }
+
+        const extStr = phoneBrokerNote.ext ? ` ext ${phoneBrokerNote.ext}` : '';
+        const otherCount = phoneMatches.length - 1;
+        const multiInfo = otherCount > 0 ? `\n(+${otherCount} other broker note(s) for this phone, showing most positive)` : '';
+        dot.title = `Broker: ${phoneBrokerNote.brokerName || phoneBrokerNote.phone || 'Broker'}${extStr} (${meta.label})\nNote: ${phoneBrokerNote.note || '— No note text —'}${multiInfo}\nClick to view note`;
+
+        dot.onclick = (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          notesModal.open(phoneBrokerNote, 'broker', 'view');
+        };
+      } else {
+        cellsContainer.querySelectorAll('.dat-table-dot-broker').forEach((d) => d.remove());
+      }
+
+      // ──────────────────────────────────────────────────────────────────────
+      // 3. Email Contact & Wrapper (Wrapped in rating background + Note button)
+      // ──────────────────────────────────────────────────────────────────────
+      let emailElement = null;
+      let emailBrokerNote = null;
+      let emailMatches = [];
+
+      // Check if this row already has a wrapped email
+      const existingWrapper = cellsContainer.querySelector('.dat-email-broker-wrapper');
+      if (existingWrapper) {
+        const innerEmail = existingWrapper.querySelector('a') || Array.from(existingWrapper.children).find((c) => !c.classList.contains('dat-email-view-btn')) || existingWrapper;
+        const txt = (innerEmail.innerText || innerEmail.textContent || '').trim();
+        const match = txt.match(EMAIL_PATTERN);
+        if (match) {
+          const normEmail = IdentityParser.normalizeEmail(match[0]);
+          if (normEmail && brkByEmail.has(normEmail)) {
+            emailMatches = brkByEmail.get(normEmail);
+            emailBrokerNote = emailMatches[0];
+            emailElement = innerEmail;
+          }
+        }
+        if (!emailBrokerNote) {
+          // No note for this email anymore or row was recycled -> unwrap it
+          unwrapEmailWrapper(existingWrapper);
+        }
+      }
+
+      // If not wrapped yet, scan candidates for email
+      if (!emailBrokerNote) {
+        const emailCandidates = cellsContainer.querySelectorAll('a[href^="mailto:"], a[href*="@"], a, span, div');
+        for (const el of emailCandidates) {
+          if (el.children.length > 0 && el.querySelector('a')) continue;
+          if (el === companyLink) continue;
+          if (el.closest('.dat-table-dot, .dat-notes-modal, .dat-email-broker-wrapper')) continue;
+
+          const txt = (el.innerText || el.textContent || '').trim();
+          const emailMatch = txt.match(EMAIL_PATTERN);
+          if (emailMatch) {
+            const normEmail = IdentityParser.normalizeEmail(emailMatch[0]);
+            if (normEmail && brkByEmail.has(normEmail)) {
+              emailMatches = brkByEmail.get(normEmail);
+              emailBrokerNote = emailMatches[0];
+              emailElement = el.matches('a') ? el : (el.closest('a') || el);
+              break;
+            }
+          }
+        }
+      }
+
+      if (emailElement && emailBrokerNote) {
+        const meta = ratingMeta(emailBrokerNote.rating);
+        const otherCount = emailMatches.length - 1;
+        const multiInfo = otherCount > 0 ? `\n(+${otherCount} other broker note(s) for this email, showing most positive)` : '';
+        const noteTitle = `Broker: ${emailBrokerNote.brokerName || emailBrokerNote.email || 'Broker'} (${meta.label})\nNote: ${emailBrokerNote.note || '— No note text —'}${multiInfo}`;
+
+        // Ensure any broker dot attached to email earlier is removed
+        (emailElement.parentElement || emailElement).querySelectorAll('.dat-table-dot-broker').forEach((d) => d.remove());
+
+        let wrapper = emailElement.closest('.dat-email-broker-wrapper');
+        if (!wrapper) {
+          wrapper = document.createElement('span');
+          wrapper.className = `dat-email-broker-wrapper ${meta.cls}`;
+          wrapper.style.backgroundColor = meta.bg;
+          wrapper.style.color = meta.color;
+          wrapper.dataset.brokerId = emailBrokerNote.id;
+          wrapper.dataset.rating = emailBrokerNote.rating;
+          wrapper.title = noteTitle;
+
+          emailElement.parentNode.insertBefore(wrapper, emailElement);
+          wrapper.appendChild(emailElement);
+          if (emailElement.style) {
+            emailElement.style.color = meta.color;
+          }
+
+          const viewBtn = document.createElement('button');
+          viewBtn.type = 'button';
+          viewBtn.className = 'dat-email-view-btn';
+          viewBtn.title = `Broker: ${emailBrokerNote.brokerName || emailBrokerNote.email || 'Broker'}\nClick to view note`;
+          viewBtn.innerHTML = `<span>📝</span><span>Note</span>`;
+          viewBtn.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            notesModal.open(emailBrokerNote, 'broker', 'view');
+          };
+          wrapper.appendChild(viewBtn);
+
+          wrapper.onclick = (e) => {
+            if (e.target.closest('a')) return;
+            e.preventDefault();
+            e.stopPropagation();
+            notesModal.open(emailBrokerNote, 'broker', 'view');
+          };
+        } else {
+          // Update existing wrapper
+          if (wrapper.dataset.brokerId !== emailBrokerNote.id || wrapper.dataset.rating !== emailBrokerNote.rating) {
+            wrapper.className = `dat-email-broker-wrapper ${meta.cls}`;
+            wrapper.style.backgroundColor = meta.bg;
+            wrapper.style.color = meta.color;
+            wrapper.dataset.brokerId = emailBrokerNote.id;
+            wrapper.dataset.rating = emailBrokerNote.rating;
+            if (emailElement.style) {
+              emailElement.style.color = meta.color;
+            }
+          }
+          wrapper.title = noteTitle;
+
+          let viewBtn = wrapper.querySelector('.dat-email-view-btn');
+          if (!viewBtn) {
+            viewBtn = document.createElement('button');
+            viewBtn.type = 'button';
+            viewBtn.className = 'dat-email-view-btn';
+            viewBtn.innerHTML = `<span>📝</span><span>Note</span>`;
+            wrapper.appendChild(viewBtn);
+          }
+          viewBtn.title = `Broker: ${emailBrokerNote.brokerName || emailBrokerNote.email || 'Broker'}\nClick to view note`;
+          viewBtn.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            notesModal.open(emailBrokerNote, 'broker', 'view');
+          };
+        }
+      } else {
+        // No email note in this row -> unwrap any residual email wrappers
+        cellsContainer.querySelectorAll('.dat-email-broker-wrapper').forEach(unwrapEmailWrapper);
+      }
     }
   }
 
@@ -246,7 +663,7 @@ export class CompanyNotesModule {
     await this.processPhonesInCard(card, { mc, companyName });
 
     // 3. Email Elements: Check company card AND left contact info column in expanded load
-    const expandedContainer = card.closest('.details-container, .xl-details, dat-load-details, [class*="load-details"]') || card;
+    const expandedContainer = card.closest('.details-container, .xl-details, dat-load-details, [class*="load-details"], .row-container') || card;
     await this.processEmailsInScope(expandedContainer, card, { mc, companyName });
   }
 
@@ -395,7 +812,7 @@ export class CompanyNotesModule {
     const emailCandidates = Array.from(scope.querySelectorAll('a[href^="mailto:"], a[href*="@"], span, div, a'))
       .filter((el) => {
         if (el.children.length > 0 && !el.matches('a')) return false;
-        if (el.closest('.dat-notes-modal, .dat-email-broker-wrapper, .dat-mini-add-btn, .dat-company-note-badge')) return false;
+        if (el.closest('.dat-notes-modal, .dat-email-broker-wrapper, .dat-mini-add-btn, .dat-company-note-badge, .table-cell, .row-cells')) return false;
         const txt = (el.innerText || el.textContent || '').trim();
         return EMAIL_PATTERN.test(txt) && txt.length < 80;
       });
@@ -493,16 +910,9 @@ export class CompanyNotesModule {
   // Refresh & Cleanup
   // ──────────────────────────────────────────────────────────────────────────
   removeAllBadges() {
-    document.querySelectorAll('.dat-email-broker-wrapper').forEach((wrapper) => {
-      wrapper.querySelector('.dat-email-view-btn')?.remove();
-      Array.from(wrapper.children).forEach((child) => (child.style.color = ''));
-      while (wrapper.firstChild) {
-        wrapper.parentNode.insertBefore(wrapper.firstChild, wrapper);
-      }
-      wrapper.remove();
-    });
+    document.querySelectorAll('.dat-email-broker-wrapper').forEach(unwrapEmailWrapper);
 
-    document.querySelectorAll('.dat-company-note-badge, .dat-phone-broker-badge, .dat-mini-add-btn, .dat-notes-badge').forEach((el) => {
+    document.querySelectorAll('.dat-company-note-badge, .dat-phone-broker-badge, .dat-mini-add-btn, .dat-notes-badge, .dat-table-dot').forEach((el) => {
       el.remove();
     });
 

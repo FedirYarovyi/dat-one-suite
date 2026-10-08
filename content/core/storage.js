@@ -4,19 +4,36 @@
  */
 export class StorageService {
   /**
+   * Check if extension context is alive and valid
+   * @returns {boolean}
+   */
+  static isAvailable() {
+    return typeof chrome !== 'undefined' && Boolean(chrome?.runtime?.id) && Boolean(chrome?.storage?.local);
+  }
+
+  /**
    * Get single or multiple keys
    * @param {string|string[]} keys
    * @returns {Promise<any>}
    */
   static async get(keys) {
+    if (!this.isAvailable()) {
+      return typeof keys === 'string' ? undefined : {};
+    }
     return new Promise((resolve) => {
-      chrome.storage.local.get(keys, (result) => {
-        if (typeof keys === 'string') {
-          resolve(result[keys]);
-        } else {
-          resolve(result);
-        }
-      });
+      try {
+        chrome.storage.local.get(keys, (result) => {
+          if (chrome.runtime?.lastError) {
+            resolve(typeof keys === 'string' ? undefined : {});
+          } else if (typeof keys === 'string') {
+            resolve(result ? result[keys] : undefined);
+          } else {
+            resolve(result || {});
+          }
+        });
+      } catch {
+        resolve(typeof keys === 'string' ? undefined : {});
+      }
     });
   }
 
@@ -26,14 +43,19 @@ export class StorageService {
    * @returns {Promise<void>}
    */
   static async set(data) {
+    if (!this.isAvailable()) return;
     return new Promise((resolve, reject) => {
-      chrome.storage.local.set(data, () => {
-        if (chrome.runtime.lastError) {
-          reject(chrome.runtime.lastError);
-        } else {
-          resolve();
-        }
-      });
+      try {
+        chrome.storage.local.set(data, () => {
+          if (chrome.runtime?.lastError) {
+            reject(chrome.runtime.lastError);
+          } else {
+            resolve();
+          }
+        });
+      } catch {
+        resolve();
+      }
     });
   }
 
@@ -43,8 +65,13 @@ export class StorageService {
    * @returns {Promise<void>}
    */
   static async remove(keys) {
+    if (!this.isAvailable()) return;
     return new Promise((resolve) => {
-      chrome.storage.local.remove(keys, () => resolve());
+      try {
+        chrome.storage.local.remove(keys, () => resolve());
+      } catch {
+        resolve();
+      }
     });
   }
 
@@ -54,13 +81,24 @@ export class StorageService {
    * @returns {() => void} unsubscribe function
    */
   static onChanged(callback) {
+    if (!this.isAvailable() || !chrome.storage?.onChanged) {
+      return () => {};
+    }
     const listener = (changes, areaName) => {
       if (areaName === 'local') {
         callback(changes);
       }
     };
-    chrome.storage.onChanged.addListener(listener);
-    return () => chrome.storage.onChanged.removeListener(listener);
+    try {
+      chrome.storage.onChanged.addListener(listener);
+      return () => {
+        try {
+          chrome.storage.onChanged.removeListener(listener);
+        } catch {}
+      };
+    } catch {
+      return () => {};
+    }
   }
 
   /**
