@@ -98,13 +98,26 @@ export class CompanyNotesModule {
     this.scrollTimer = null;
     this.storageUnwatch = null;
     this.isScanning = false;
+    this.emailFullWrapper = false;
   }
 
   async init() {
     eventBus.on('notes:updated', () => this.refreshAll());
     eventBus.on('notes:deleted', () => this.refreshAll());
 
+    try {
+      const savedMode = await StorageService.get('setting:table-email-full-wrapper');
+      this.emailFullWrapper = savedMode === true;
+    } catch {
+      this.emailFullWrapper = false;
+    }
+
     this.storageUnwatch = StorageService.onChanged((changes) => {
+      if (changes['setting:table-email-full-wrapper'] !== undefined) {
+        this.emailFullWrapper = changes['setting:table-email-full-wrapper'].newValue === true;
+        this.refreshAll();
+        return;
+      }
       if (changes['company-notes-data'] || changes['contact-notes-data']) {
         this.refreshAll();
       }
@@ -478,15 +491,15 @@ export class CompanyNotesModule {
       if (phoneElement && phoneBrokerNote) {
         const meta = ratingMeta(phoneBrokerNote.rating);
         const parent = phoneElement.parentElement || phoneElement;
-        let dot = parent.querySelector('.dat-table-dot-broker');
+        let dot = parent.querySelector('.dat-table-dot-phone');
         if (!dot) {
           dot = document.createElement('span');
-          dot.className = `dat-table-dot dat-table-dot-broker dat-dot-${phoneBrokerNote.rating}`;
+          dot.className = `dat-table-dot dat-table-dot-broker dat-table-dot-phone dat-dot-${phoneBrokerNote.rating}`;
           phoneElement.insertAdjacentElement('afterend', dot);
         }
 
         if (dot.dataset.brokerId !== phoneBrokerNote.id || dot.dataset.rating !== phoneBrokerNote.rating) {
-          dot.className = `dat-table-dot dat-table-dot-broker dat-dot-${phoneBrokerNote.rating}`;
+          dot.className = `dat-table-dot dat-table-dot-broker dat-table-dot-phone dat-dot-${phoneBrokerNote.rating}`;
           dot.dataset.brokerId = phoneBrokerNote.id;
           dot.dataset.rating = phoneBrokerNote.rating;
           dot.style.backgroundColor = meta.bg;
@@ -503,11 +516,11 @@ export class CompanyNotesModule {
           notesModal.open(phoneBrokerNote, 'broker', 'view');
         };
       } else {
-        cellsContainer.querySelectorAll('.dat-table-dot-broker').forEach((d) => d.remove());
+        cellsContainer.querySelectorAll('.dat-table-dot-phone').forEach((d) => d.remove());
       }
 
       // ──────────────────────────────────────────────────────────────────────
-      // 3. Email Contact & Wrapper (Wrapped in rating background + Note button)
+      // 3. Email Contact: Full Wrapper vs Circle Dot (controlled by popup toggle)
       // ──────────────────────────────────────────────────────────────────────
       let emailElement = null;
       let emailBrokerNote = null;
@@ -527,13 +540,13 @@ export class CompanyNotesModule {
             emailElement = innerEmail;
           }
         }
-        if (!emailBrokerNote) {
-          // No note for this email anymore or row was recycled -> unwrap it
+        if (!emailBrokerNote || !this.emailFullWrapper) {
+          // If no note OR user switched to dot mode -> unwrap it back to plain text
           unwrapEmailWrapper(existingWrapper);
         }
       }
 
-      // If not wrapped yet, scan candidates for email
+      // If not wrapped yet or was unwrapped, scan candidates for email
       if (!emailBrokerNote) {
         const emailCandidates = cellsContainer.querySelectorAll('a[href^="mailto:"], a[href*="@"], a, span, div');
         for (const el of emailCandidates) {
@@ -559,77 +572,107 @@ export class CompanyNotesModule {
         const meta = ratingMeta(emailBrokerNote.rating);
         const otherCount = emailMatches.length - 1;
         const multiInfo = otherCount > 0 ? `\n(+${otherCount} other broker note(s) for this email, showing most positive)` : '';
-        const noteTitle = `Broker: ${emailBrokerNote.brokerName || emailBrokerNote.email || 'Broker'} (${meta.label})\nNote: ${emailBrokerNote.note || '— No note text —'}${multiInfo}`;
 
-        // Ensure any broker dot attached to email earlier is removed
-        (emailElement.parentElement || emailElement).querySelectorAll('.dat-table-dot-broker').forEach((d) => d.remove());
+        if (this.emailFullWrapper) {
+          // ── MODE 1: Full Colored Wrapper + Note Button ──
+          (emailElement.parentElement || emailElement).querySelectorAll('.dat-table-dot-email').forEach((d) => d.remove());
 
-        let wrapper = emailElement.closest('.dat-email-broker-wrapper');
-        if (!wrapper) {
-          wrapper = document.createElement('span');
-          wrapper.className = `dat-email-broker-wrapper ${meta.cls}`;
-          wrapper.style.backgroundColor = meta.bg;
-          wrapper.style.color = meta.color;
-          wrapper.dataset.brokerId = emailBrokerNote.id;
-          wrapper.dataset.rating = emailBrokerNote.rating;
-          wrapper.title = noteTitle;
-
-          emailElement.parentNode.insertBefore(wrapper, emailElement);
-          wrapper.appendChild(emailElement);
-          if (emailElement.style) {
-            emailElement.style.color = meta.color;
-          }
-
-          const viewBtn = document.createElement('button');
-          viewBtn.type = 'button';
-          viewBtn.className = 'dat-email-view-btn';
-          viewBtn.title = `Broker: ${emailBrokerNote.brokerName || emailBrokerNote.email || 'Broker'}\nClick to view note`;
-          viewBtn.innerHTML = `<span>📝</span><span>Note</span>`;
-          viewBtn.onclick = (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            notesModal.open(emailBrokerNote, 'broker', 'view');
-          };
-          wrapper.appendChild(viewBtn);
-
-          wrapper.onclick = (e) => {
-            if (e.target.closest('a')) return;
-            e.preventDefault();
-            e.stopPropagation();
-            notesModal.open(emailBrokerNote, 'broker', 'view');
-          };
-        } else {
-          // Update existing wrapper
-          if (wrapper.dataset.brokerId !== emailBrokerNote.id || wrapper.dataset.rating !== emailBrokerNote.rating) {
+          const noteTitle = `Broker: ${emailBrokerNote.brokerName || emailBrokerNote.email || 'Broker'} (${meta.label})\nNote: ${emailBrokerNote.note || '— No note text —'}${multiInfo}`;
+          let wrapper = emailElement.closest('.dat-email-broker-wrapper');
+          if (!wrapper) {
+            wrapper = document.createElement('span');
             wrapper.className = `dat-email-broker-wrapper ${meta.cls}`;
             wrapper.style.backgroundColor = meta.bg;
             wrapper.style.color = meta.color;
             wrapper.dataset.brokerId = emailBrokerNote.id;
             wrapper.dataset.rating = emailBrokerNote.rating;
+            wrapper.title = noteTitle;
+
+            emailElement.parentNode.insertBefore(wrapper, emailElement);
+            wrapper.appendChild(emailElement);
             if (emailElement.style) {
               emailElement.style.color = meta.color;
             }
-          }
-          wrapper.title = noteTitle;
 
-          let viewBtn = wrapper.querySelector('.dat-email-view-btn');
-          if (!viewBtn) {
-            viewBtn = document.createElement('button');
+            const viewBtn = document.createElement('button');
             viewBtn.type = 'button';
             viewBtn.className = 'dat-email-view-btn';
+            viewBtn.title = `Broker: ${emailBrokerNote.brokerName || emailBrokerNote.email || 'Broker'}\nClick to view note`;
             viewBtn.innerHTML = `<span>📝</span><span>Note</span>`;
+            viewBtn.onclick = (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              notesModal.open(emailBrokerNote, 'broker', 'view');
+            };
             wrapper.appendChild(viewBtn);
+
+            wrapper.onclick = (e) => {
+              if (e.target.closest('a')) return;
+              e.preventDefault();
+              e.stopPropagation();
+              notesModal.open(emailBrokerNote, 'broker', 'view');
+            };
+          } else {
+            if (wrapper.dataset.brokerId !== emailBrokerNote.id || wrapper.dataset.rating !== emailBrokerNote.rating) {
+              wrapper.className = `dat-email-broker-wrapper ${meta.cls}`;
+              wrapper.style.backgroundColor = meta.bg;
+              wrapper.style.color = meta.color;
+              wrapper.dataset.brokerId = emailBrokerNote.id;
+              wrapper.dataset.rating = emailBrokerNote.rating;
+              if (emailElement.style) {
+                emailElement.style.color = meta.color;
+              }
+            }
+            wrapper.title = noteTitle;
+
+            let viewBtn = wrapper.querySelector('.dat-email-view-btn');
+            if (!viewBtn) {
+              viewBtn = document.createElement('button');
+              viewBtn.type = 'button';
+              viewBtn.className = 'dat-email-view-btn';
+              viewBtn.innerHTML = `<span>📝</span><span>Note</span>`;
+              wrapper.appendChild(viewBtn);
+            }
+            viewBtn.title = `Broker: ${emailBrokerNote.brokerName || emailBrokerNote.email || 'Broker'}\nClick to view note`;
+            viewBtn.onclick = (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              notesModal.open(emailBrokerNote, 'broker', 'view');
+            };
           }
-          viewBtn.title = `Broker: ${emailBrokerNote.brokerName || emailBrokerNote.email || 'Broker'}\nClick to view note`;
-          viewBtn.onclick = (e) => {
-            e.preventDefault();
+        } else {
+          // ── MODE 2 (Default): Compact Circle Dot (same as phone) ──
+          const curWrapper = emailElement.closest('.dat-email-broker-wrapper');
+          if (curWrapper) {
+            unwrapEmailWrapper(curWrapper);
+          }
+
+          const parent = emailElement.parentElement || emailElement;
+          let dot = parent.querySelector('.dat-table-dot-email');
+          if (!dot) {
+            dot = document.createElement('span');
+            dot.className = `dat-table-dot dat-table-dot-broker dat-table-dot-email dat-dot-${emailBrokerNote.rating}`;
+            emailElement.insertAdjacentElement('afterend', dot);
+          }
+
+          if (dot.dataset.brokerId !== emailBrokerNote.id || dot.dataset.rating !== emailBrokerNote.rating) {
+            dot.className = `dat-table-dot dat-table-dot-broker dat-table-dot-email dat-dot-${emailBrokerNote.rating}`;
+            dot.dataset.brokerId = emailBrokerNote.id;
+            dot.dataset.rating = emailBrokerNote.rating;
+            dot.style.backgroundColor = meta.bg;
+          }
+
+          dot.title = `Broker: ${emailBrokerNote.brokerName || emailBrokerNote.email || 'Broker'} (${meta.label})\nNote: ${emailBrokerNote.note || '— No note text —'}${multiInfo}\nClick to view note`;
+          dot.onclick = (e) => {
             e.stopPropagation();
+            e.preventDefault();
             notesModal.open(emailBrokerNote, 'broker', 'view');
           };
         }
       } else {
-        // No email note in this row -> unwrap any residual email wrappers
+        // No email note in this row -> clean up wrappers and dots
         cellsContainer.querySelectorAll('.dat-email-broker-wrapper').forEach(unwrapEmailWrapper);
+        cellsContainer.querySelectorAll('.dat-table-dot-email').forEach((d) => d.remove());
       }
     }
   }

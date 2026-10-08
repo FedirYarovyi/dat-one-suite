@@ -353,6 +353,8 @@
    ======================================================== */
 .dat-table-dot {
   display: inline-block !important;
+  position: relative !important;
+  top: 2px !important;
   width: 9px !important;
   height: 9px !important;
   min-width: 9px !important;

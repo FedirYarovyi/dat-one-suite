@@ -33,12 +33,14 @@ async function loadModulesSettings() {
   const keys = [
     'module:sidebar-toggle:enabled',
     'module:company-notes:enabled',
-    'setting:custom-sidebar-selector'
+    'setting:custom-sidebar-selector',
+    'setting:table-email-full-wrapper'
   ];
   chrome.storage.local.get(keys, (res) => {
     const sidebarToggle = document.getElementById('toggle-sidebar-module');
     const notesToggle = document.getElementById('toggle-notes-module');
     const customSelectorInput = document.getElementById('custom-sidebar-selector');
+    const emailWrapperToggle = document.getElementById('toggle-table-email-wrapper');
 
     if (sidebarToggle) {
       sidebarToggle.checked = res['module:sidebar-toggle:enabled'] !== false;
@@ -50,6 +52,12 @@ async function loadModulesSettings() {
       notesToggle.checked = res['module:company-notes:enabled'] !== false;
       notesToggle.addEventListener('change', (e) => {
         chrome.storage.local.set({ 'module:company-notes:enabled': e.target.checked });
+      });
+    }
+    if (emailWrapperToggle) {
+      emailWrapperToggle.checked = res['setting:table-email-full-wrapper'] === true;
+      emailWrapperToggle.addEventListener('change', (e) => {
+        chrome.storage.local.set({ 'setting:table-email-full-wrapper': e.target.checked });
       });
     }
     if (customSelectorInput) {
